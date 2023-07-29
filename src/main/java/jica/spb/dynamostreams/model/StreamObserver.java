@@ -1,4 +1,7 @@
 package jica.spb.dynamostreams.model;
 
-public class Observer {
+public interface StreamObserver {
+
+    <T> void onChanged(StreamEvent<T> event);
+
 }
