@@ -70,12 +70,6 @@
             "Sid": "VisualEditor0",
             "Effect": "Allow",
             "Action": [
-               "dynamodb:PutItem",
-               "dynamodb:DeleteItem",
-               "dynamodb:GetItem",
-               "dynamodb:Scan",
-               "dynamodb:Query",
-               "dynamodb:UpdateItem",
                "dynamodb:DescribeStream",
                "dynamodb:GetShardIterator",
                "dynamodb:GetRecords"
@@ -84,4 +78,4 @@
          }
       ]
    }
-```
+   ```
