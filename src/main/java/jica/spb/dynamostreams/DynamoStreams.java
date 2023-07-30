@@ -6,18 +6,17 @@ import com.amazonaws.services.dynamodbv2.model.Record;
 
 import java.util.*;
 
-import jica.spb.dynamostreams.exception.DynamoStreamsException;
 import jica.spb.dynamostreams.model.*;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class DynamoStreams<T> {
 
+    private static final Logger LOGGER = Logger.getLogger(DynamoStreams.class.getName());
     private final StreamRequest<T> streamRequest;
     private final FutureUtils futureUtils;
     private final PollConfig pollConfig;
@@ -34,7 +33,8 @@ public class DynamoStreams<T> {
         return streamRequest.getDynamoDBStreams();
     }
 
-    public void subscribeToStream(StreamObserver<T> observer) {
+    public void subscribe(StreamObserver<T> observer) {
+        LOGGER.log(Level.INFO, "Started DynamoDB stream subscription");
         if (streamRequest.getPollConfig().usePolling()) {
             scheduleTaskWithFixedDelay(observer);
         } else {
@@ -51,6 +51,7 @@ public class DynamoStreams<T> {
     }
 
     private void performStreamingOperations(StreamObserver<T> observer) {
+        LOGGER.log(Level.FINE, "Started streaming operations");
         streamObserver = observer;
         removeExpiredShards();
         populateShards();
@@ -70,21 +71,28 @@ public class DynamoStreams<T> {
         String lastEvaluatedShardId = null;
         int currentCount = 0;
         do {
+            LOGGER.log(Level.FINER, "New Stream describe with lastEvaluatedShardId: {}", lastEvaluatedShardId);
             DescribeStreamResult streamResult = streamsClient().describeStream(
                     new DescribeStreamRequest()
                             .withStreamArn(streamRequest.getStreamARN())
                             .withExclusiveStartShardId(lastEvaluatedShardId)
             );
 
-            List<Shard> shards = streamResult.getStreamDescription().getShards();
-            List<StreamShard> newShards = mapToNewShards(shards);
-            emitEvent(EventType.NEW_SHARD_EVENT, newShards, null);
+            newShards(streamResult.getStreamDescription().getShards());
             lastEvaluatedShardId = streamResult.getStreamDescription().getLastEvaluatedShardId();
 
         } while (lastEvaluatedShardId != null && ++currentCount < pollConfig.getStreamDescriptionLimitPerPoll());
     }
 
-    private List<StreamShard> mapToNewShards(List<Shard> shards) {
+    private void newShards(List<Shard> shards) {
+        List<StreamShard> newShards = putNewShardsInSharedMap(shards);
+        LOGGER.log(Level.FINER, "Found new shards: {}", newShards);
+        if (!newShards.isEmpty()) {
+            emitEvent(EventType.NEW_SHARD_EVENT, newShards, null);
+        }
+    }
+
+    private List<StreamShard> putNewShardsInSharedMap(List<Shard> shards) {
         return shards.stream()
                 .filter(shard -> !shardsMap.containsKey(shard.getShardId()))
                 .map(shard -> {
@@ -108,13 +116,17 @@ public class DynamoStreams<T> {
 
     private List<Record> getRecord(StreamShard streamShard) {
         try {
+            LOGGER.log(Level.FINEST, "Getting records for iterator: {}", streamShard.getShardIterator());
+
             GetRecordsResult recordsResult = streamsClient().getRecords(new GetRecordsRequest()
                     .withShardIterator(streamShard.getShardIterator()));
 
             streamShard.setShardIterator(recordsResult.getNextShardIterator());
 
+            LOGGER.log(Level.FINEST, "Result record: {}", recordsResult);
             return recordsResult.getRecords();
         } catch (ExpiredIteratorException e) {
+            LOGGER.log(Level.FINEST, "ShardIterator expired: {}", streamShard.getShardIterator());
             streamShard.setShardIterator(null);
             return Collections.emptyList();
         }
@@ -133,19 +145,23 @@ public class DynamoStreams<T> {
     }
 
     private Void getSharedIterator(StreamShard streamShard) {
+        LOGGER.log(Level.FINEST, "Getting iterator for shard: {}", streamShard);
+
         GetShardIteratorRequest iteratorRequest = new GetShardIteratorRequest()
                 .withStreamArn(streamRequest.getStreamARN())
                 .withShardId(streamShard.getShard().getShardId())
                 .withShardIteratorType(streamRequest.getShardIteratorType());
 
-        GetShardIteratorResult iteratorResult =
-                streamsClient().getShardIterator(iteratorRequest);
+        GetShardIteratorResult iteratorResult = streamsClient().getShardIterator(iteratorRequest);
+
+        LOGGER.log(Level.FINEST, "Result iterator for shard: {}", iteratorResult);
 
         streamShard.setShardIterator(iteratorResult.getShardIterator());
         return null;
     }
 
     private void removeExpiredShards() {
+        LOGGER.log(Level.FINER, "Removing shards with existing shards {}", shardsMap);
         var expiredShards = shardsMap.values().stream()
                 .filter(shard -> shard.getShardIterator() == null)
                 .map(shard -> shardsMap.remove(shard.getShard().getShardId()))
@@ -186,6 +202,7 @@ public class DynamoStreams<T> {
             return;
         }
         var event = new StreamEvent<>(eventType, dynamoRecord, new StreamShards(streamShards));
+        LOGGER.log(Level.FINEST, "Emitting event: {}", event);
         streamObserver.onChanged(event);
     }
 
