@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.jica98</groupId>
-    <artifactId>DynamoStreams</artifactId>
+    <artifactId>aws-java-dynamo-streams</artifactId>
     <version>0.0.1</version>
     <name>Archetype - DynamoStreams</name>
     <url>https://maven.apache.org</url>
