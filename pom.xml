@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.jica98</groupId>
     <artifactId>aws-java-dynamo-streams</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
     <name>aws-java-dynamo-streams</name>
     <description>DynamoStream Class to subscribe to the low level Stream API of AWS DynamoDB</description>
     <url>https://maven.apache.org</url>
@@ -161,7 +161,7 @@
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
-            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
 

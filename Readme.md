@@ -11,7 +11,7 @@
 
    a. pom.xml
 
-    ````
+    ````xml
     <dependency>
          <groupId>io.github.jica98</groupId>
          <artifactId>aws-java-dynamo-streams</artifactId>
@@ -20,13 +20,13 @@
    ````
     b. build.gradle
     
-    ````
+    ````groovy
    implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.1'
    ````
 2. If you are using spring, add the following beans to your configuration class.
 
-    ````
-   private static final String STREAM_ARN = "arn:aws:dynamodb:us-east-1:your-dynamo-db-stream;
+    ````java
+   private static final String STREAM_ARN = "arn:aws:dynamodb:us-east-1:your-dynamo-db-stream";
    
     @Bean(destroyMethod = "shutdown")
     protected AmazonDynamoDBStreams streamsClient() {
@@ -50,7 +50,7 @@
    
 3. Now, in one of your services, subscribe to the events of your table
 
-    ````
+    ````java
     @Autowired
     private DynamoStreams<Object> dynamoStreams;
    
@@ -59,3 +59,29 @@
         dynamoStreams.subscribe(event -> log.debug("{}", event));
     }
    ````
+   
+### Note
+1. For performing the streaming, you will need the following actions defined in your policy:
+   ```json
+   {
+      "Version": "2012-10-17",
+      "Statement": [
+         {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+               "dynamodb:PutItem",
+               "dynamodb:DeleteItem",
+               "dynamodb:GetItem",
+               "dynamodb:Scan",
+               "dynamodb:Query",
+               "dynamodb:UpdateItem",
+               "dynamodb:DescribeStream",
+               "dynamodb:GetShardIterator",
+               "dynamodb:GetRecords"
+            ],
+            "Resource": "*"
+         }
+      ]
+   }
+```
