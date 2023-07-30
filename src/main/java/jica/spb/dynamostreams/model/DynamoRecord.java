@@ -1,17 +1,19 @@
 package jica.spb.dynamostreams.model;
 
 import com.amazonaws.services.dynamodbv2.model.Record;
-import lombok.Data;
+import lombok.Builder;
+import lombok.Value;
 
-@Data
+@Value
+@Builder
 public class DynamoRecord<T> {
 
-    private final Record originalRecord;
+    Record originalRecord;
 
-    private T oldImage;
+    T oldImage;
 
-    private T newImage;
+    T newImage;
 
-    private T keyValues;
+    T keyValues;
 
 }
