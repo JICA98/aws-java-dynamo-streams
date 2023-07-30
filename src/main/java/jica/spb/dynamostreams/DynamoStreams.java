@@ -21,7 +21,6 @@ public class DynamoStreams<T> {
     private final FutureUtils futureUtils;
     private final List<StreamObserver> streamObservers = new CopyOnWriteArrayList<>();
     private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
-    private String lastEvaluatedShardId;
 
     public DynamoStreams(StreamRequest<T> streamRequest) {
         this.streamRequest = streamRequest;
@@ -35,30 +34,40 @@ public class DynamoStreams<T> {
     public void buildStreamState(StreamObserver observer) {
         streamObservers.add(observer);
         removeExpiredShards();
-        getShards();
+        populateShards();
         if (shardsMap.isEmpty()) {
             return;
         }
-        getShardIterators();
+        populateShardIterators();
         emitRecords(getRecords());
         removeExpiredShards();
     }
 
-    private void getShards() {
-        DescribeStreamResult streamResult = streamsClient().describeStream(
-                new DescribeStreamRequest()
-                        .withStreamArn(streamRequest.getStreamARN())
-                        .withExclusiveStartShardId(lastEvaluatedShardId)
-        );
+    public void removeObserver(StreamObserver observer) {
+        streamObservers.remove(observer);
+    }
 
-        List<Shard> shards = streamResult.getStreamDescription().getShards();
+    private void populateShards() {
+        String lastEvaluatedShardId = null;
+        do {
+            DescribeStreamResult streamResult = streamsClient().describeStream(
+                    new DescribeStreamRequest()
+                            .withStreamArn(streamRequest.getStreamARN())
+                            .withExclusiveStartShardId(lastEvaluatedShardId)
+            );
 
-        List<StreamShard> newShards = shards.stream()
-                .filter(shard -> !shardsMap.containsKey(shard.getShardId()))
-                .map(shard -> shardsMap.put(shard.getShardId(), new StreamShard(shard)))
-                .collect(Collectors.toList());
+            List<Shard> shards = streamResult.getStreamDescription().getShards();
 
-        emitEvent(EventType.NEW_SHARD_EVENT, newShards);
+            List<StreamShard> newShards = shards.stream()
+                    .filter(shard -> !shardsMap.containsKey(shard.getShardId()))
+                    .map(shard -> shardsMap.put(shard.getShardId(), new StreamShard(shard)))
+                    .collect(Collectors.toList());
+
+            emitEvent(EventType.NEW_SHARD_EVENT, newShards);
+
+            lastEvaluatedShardId = streamResult.getStreamDescription().getLastEvaluatedShardId();
+
+        } while (lastEvaluatedShardId != null);
     }
 
     private List<Record> getRecords() {
@@ -83,7 +92,7 @@ public class DynamoStreams<T> {
         }
     }
 
-    private void getShardIterators() {
+    private void populateShardIterators() {
         var futures = shardsMap.values().stream()
                 .filter(shard -> shard.getShardIterator() == null)
                 .map(mapToFuture(this::getSharedIterator))

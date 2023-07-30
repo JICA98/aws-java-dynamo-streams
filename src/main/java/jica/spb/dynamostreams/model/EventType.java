@@ -1,6 +1,5 @@
 package jica.spb.dynamostreams.model;
 
-import com.amazonaws.transform.MapEntry;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

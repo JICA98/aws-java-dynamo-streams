@@ -1,7 +1,25 @@
 package jica.spb.dynamostreams.model;
 
-public interface StreamObserver {
+import java.util.UUID;
 
-    <T> void onChanged(StreamEvent<T> event);
+public abstract class StreamObserver {
 
+    private final UUID uuid = UUID.randomUUID();
+
+    public abstract <T> void onChanged(StreamEvent<T> event);
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        StreamObserver that = (StreamObserver) o;
+
+        return uuid.equals(that.uuid);
+    }
+
+    @Override
+    public int hashCode() {
+        return uuid.hashCode();
+    }
 }
