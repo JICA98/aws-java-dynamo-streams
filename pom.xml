@@ -2,9 +2,9 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>jica.spb.dynamostreams</groupId>
+    <groupId>io.github.jica98</groupId>
     <artifactId>DynamoStreams</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>Archetype - DynamoStreams</name>
     <url>https://maven.apache.org</url>
 

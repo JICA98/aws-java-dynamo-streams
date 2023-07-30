@@ -14,6 +14,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+/**
+ * DynamoStreams
+ * @param <T>
+ */
 public class DynamoStreams<T> {
 
     private static final Logger LOGGER = Logger.getLogger(DynamoStreams.class.getName());
@@ -23,6 +27,9 @@ public class DynamoStreams<T> {
     private StreamObserver<T> streamObserver;
     private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
 
+    /**
+     * @param streamRequest StreamRequest
+     */
     public DynamoStreams(StreamRequest<T> streamRequest) {
         this.streamRequest = streamRequest;
         this.futureUtils = new FutureUtils(streamRequest.getExecutor());
@@ -33,6 +40,9 @@ public class DynamoStreams<T> {
         return streamRequest.getDynamoDBStreams();
     }
 
+    /**
+     * @param observer StreamObserver
+     */
     public void subscribe(StreamObserver<T> observer) {
         LOGGER.log(Level.INFO, "Started DynamoDB stream subscription");
         if (streamRequest.getPollConfig().usePolling()) {
@@ -63,6 +73,9 @@ public class DynamoStreams<T> {
         removeExpiredShards();
     }
 
+    /**
+     * @return StreamShards
+     */
     public StreamShards getShards() {
         return new StreamShards(new ArrayList<>(shardsMap.values()));
     }
@@ -210,6 +223,9 @@ public class DynamoStreams<T> {
         return streamRequest.getEventTypes().contains(eventType);
     }
 
+    /**
+     * shutdown
+     */
     public void shutdown() {
         if (pollConfig.isOwnExecutor()) {
             pollConfig.getScheduledExecutorService().shutdown();

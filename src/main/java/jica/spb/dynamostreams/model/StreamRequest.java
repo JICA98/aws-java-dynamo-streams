@@ -13,6 +13,10 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
+/**
+ * StreamRequest
+ * @param <T>
+ */
 @Value
 @Builder
 public class StreamRequest<T> {
