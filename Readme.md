@@ -2,7 +2,7 @@
 
 1. Provides `subscribe` method to directly listen to your dynamoDb events.
 2. Listen to selected events such as `INSERT`, `REMOVE`, etc.
-3. Customize with your own custom `Executor` to perform stream operations in parallel.
+3. Provide your own custom `Executor` to perform stream operations in parallel.
 4. Option to automatic/manual polling of DynamoDB Events.
 
 ### Steps to Set up
