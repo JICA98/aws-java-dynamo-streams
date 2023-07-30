@@ -1,4 +1,4 @@
-package jica.spb.dynamostreams;
+package jica.spb.dynamostreams.exception;
 
 public class DynamoStreamsException extends RuntimeException {
 

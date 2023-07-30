@@ -6,6 +6,7 @@ import com.amazonaws.services.dynamodbv2.model.Record;
 
 import java.util.*;
 
+import jica.spb.dynamostreams.exception.DynamoStreamsException;
 import jica.spb.dynamostreams.model.*;
 
 import java.util.concurrent.CompletableFuture;
@@ -96,12 +97,12 @@ public class DynamoStreams<T> {
 
     private List<Record> getRecords() {
         var futures = shardsMap.values().stream()
-                .map(mapToFuture(this::getRecord))
+                .map(futureUtils.mapToFuture(this::getRecord))
                 .collect(Collectors.toList());
 
         return futureUtils.allOff(futures)
-                .thenApply(flatMapFutures(futures))
-                .exceptionally(this::exceptionally)
+                .thenApply(futureUtils.flatMapFutures(futures))
+                .exceptionally(futureUtils::exceptionally)
                 .join();
     }
 
@@ -122,12 +123,12 @@ public class DynamoStreams<T> {
     private void populateShardIterators() {
         var futures = shardsMap.values().stream()
                 .filter(shard -> shard.getShardIterator() == null)
-                .map(mapToFuture(this::getSharedIterator))
+                .map(futureUtils.mapToFuture(this::getSharedIterator))
                 .collect(Collectors.toList());
 
         futureUtils.allOff(futures)
-                .thenApply(joinFutures(futures))
-                .exceptionally(this::exceptionally)
+                .thenApply(futureUtils.joinFutures(futures))
+                .exceptionally(futureUtils::exceptionally)
                 .join();
     }
 
@@ -190,22 +191,6 @@ public class DynamoStreams<T> {
 
     private boolean isEventChosen(EventType eventType) {
         return streamRequest.getEventTypes().contains(eventType);
-    }
-
-    private <R> R exceptionally(Throwable ex) {
-        return futureUtils.handleException(ex, cause -> new DynamoStreamsException("Couldn't complete future", cause));
-    }
-
-    private <R> Function<Void, Stream<R>> joinFutures(List<CompletableFuture<R>> futures) {
-        return v -> futures.stream().flatMap(futureUtils::stream);
-    }
-
-    private <R> Function<Void, List<R>> flatMapFutures(List<CompletableFuture<List<R>>> futures) {
-        return v -> futures.stream().flatMap(futureUtils::streamList).collect(Collectors.toList());
-    }
-
-    private <S, R> Function<S, CompletableFuture<R>> mapToFuture(Function<S, R> function) {
-        return shard -> futureUtils.future(function, shard);
     }
 
     public void shutdown() {
