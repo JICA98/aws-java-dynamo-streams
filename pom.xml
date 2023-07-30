@@ -5,7 +5,7 @@
     <groupId>io.github.jica98</groupId>
     <artifactId>aws-java-dynamo-streams</artifactId>
     <version>0.0.1</version>
-    <name>Archetype - DynamoStreams</name>
+    <name>aws-java-dynamo-streams</name>
     <description>DynamoStream Class to subscribe to the low level Stream API of AWS DynamoDB</description>
     <url>https://maven.apache.org</url>
 
@@ -20,6 +20,8 @@
         <java.version>11</java.version>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
     <distributionManagement>
@@ -106,7 +108,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.5.0</version>
                 <executions>
                     <execution>
                         <id>attach-javadocs</id>

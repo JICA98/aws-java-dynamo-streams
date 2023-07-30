@@ -8,37 +8,73 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * PollConfig
+ * A configuration class for controlling polling behavior during DynamoDB Streams subscription.
+ */
 @Value
 public class PollConfig {
 
+    // Default values for configuration parameters
     private static final int STREAM_DESCRIPTION_LIMIT = 10;
     private static final long DEFAULT_DELAY = 10L;
     private static final TimeUnit DEFAULT_TIME_UNIT = TimeUnit.SECONDS;
     private static final Long DEFAULT_INITIAL_DELAY = 1L;
 
+    /**
+     * The maximum number of stream descriptions to retrieve per polling round.
+     */
     int streamDescriptionLimitPerPoll;
 
+    /**
+     * The ScheduledExecutorService for handling polling tasks.
+     */
     ScheduledExecutorService scheduledExecutorService;
 
+    /**
+     * Flag to indicate if one-time polling should be used.
+     */
     @Accessors(fluent = true)
-    boolean usePolling;
+    boolean oneTimePolling;
 
+    /**
+     * Flag to indicate if the PollConfig uses its own Executor (created internally) or a custom provided Executor.
+     */
     boolean ownExecutor;
 
+    /**
+     * The delay between successive polling rounds.
+     */
     Long delay;
 
+    /**
+     * The initial delay before starting the first polling round.
+     */
     Long initialDelay;
 
+    /**
+     * The TimeUnit for specifying time durations related to polling.
+     */
     TimeUnit timeUnit;
 
+    /**
+     * PollConfig constructor.
+     *
+     * @param streamDescriptionLimitPerPoll The maximum number of stream descriptions to retrieve per polling round.
+     * @param scheduledExecutorService The ScheduledExecutorService for handling polling tasks.
+     * @param oneTimePolling Flag to indicate if one-time polling should be used.
+     * @param delay The delay between successive polling rounds.
+     * @param initialDelay The initial delay before starting the first polling round.
+     * @param timeUnit The TimeUnit for specifying time durations related to polling.
+     */
     public PollConfig(
             Integer streamDescriptionLimitPerPoll,
             ScheduledExecutorService scheduledExecutorService,
-            boolean usePolling,
+            boolean oneTimePolling,
             Long delay,
             Long initialDelay, TimeUnit timeUnit
     ) {
-        this.usePolling = usePolling;
+        this.oneTimePolling = oneTimePolling;
         this.streamDescriptionLimitPerPoll = Objects.requireNonNullElse(streamDescriptionLimitPerPoll, STREAM_DESCRIPTION_LIMIT);
         this.delay = Objects.requireNonNullElse(delay, DEFAULT_DELAY);
         this.initialDelay = Objects.requireNonNullElse(initialDelay, DEFAULT_INITIAL_DELAY);
@@ -52,49 +88,12 @@ public class PollConfig {
         }
     }
 
+    /**
+     * Default constructor for PollConfig.
+     * Creates a PollConfig with default settings for one-time polling.
+     */
     public PollConfig() {
         this(null, null, true, null, null, null);
-    }
-
-    public static PollConfigBuilder builder() {
-        return new PollConfigBuilder();
-    }
-
-    public static class PollConfigBuilder {
-        private Integer streamDescriptionLimitPerPoll = null;
-        private ScheduledExecutorService scheduledExecutorService = null;
-        private boolean usePolling = true;
-        private Long delay = null;
-        private TimeUnit timeUnit = null;
-
-        public PollConfigBuilder streamDescriptionLimitPerPoll(Integer streamDescriptionLimitPerPoll) {
-            this.streamDescriptionLimitPerPoll = streamDescriptionLimitPerPoll;
-            return this;
-        }
-
-        public PollConfigBuilder scheduledExecutorService(ScheduledExecutorService scheduledExecutorService) {
-            this.scheduledExecutorService = scheduledExecutorService;
-            return this;
-        }
-
-        public PollConfigBuilder usePolling(boolean usePolling) {
-            this.usePolling = usePolling;
-            return this;
-        }
-
-        public PollConfigBuilder delay(Long delay) {
-            this.delay = delay;
-            return this;
-        }
-
-        public PollConfigBuilder timeUnit(TimeUnit timeUnit) {
-            this.timeUnit = timeUnit;
-            return this;
-        }
-
-        public PollConfig build() {
-            return new PollConfig(streamDescriptionLimitPerPoll, scheduledExecutorService, usePolling, delay, null, timeUnit);
-        }
     }
 
 }

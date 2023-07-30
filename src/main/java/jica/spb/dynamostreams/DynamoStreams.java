@@ -16,7 +16,9 @@ import java.util.stream.Collectors;
 
 /**
  * DynamoStreams
- * @param <T>
+ * The DynamoStreams class is designed to provide a convenient way to subscribe to and process events from an Amazon DynamoDB stream. This class handles the low-level details of interacting with the DynamoDB Streams API and allows users to define custom logic to process stream events.
+ *
+ * @param <T> T: The type of data being processed in the stream records. This is defined by the user when creating an instance of DynamoStreams.
  */
 public class DynamoStreams<T> {
 
@@ -28,7 +30,11 @@ public class DynamoStreams<T> {
     private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
 
     /**
-     * @param streamRequest StreamRequest
+     * Description
+     * The constructor initializes the DynamoStreams object with the provided StreamRequest.
+     * It sets up the necessary components for handling stream events, such as PollConfig based on the provided StreamRequest.
+     * Parameters
+     * @param streamRequest: An instance of StreamRequest that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
      */
     public DynamoStreams(StreamRequest<T> streamRequest) {
         this.streamRequest = streamRequest;
@@ -41,26 +47,31 @@ public class DynamoStreams<T> {
     }
 
     /**
-     * @param observer StreamObserver
+     * Description
+     * <ul><li>This method starts the DynamoDB stream subscription and initiates the processing of stream events.
+     * </li><li>Depending on the <code>PollConfig</code>, the subscription can either be performed using polling or wi.</li>
+     * <li>If polling is enabled, it schedules a task to periodically fetch stream events at the specified intervals.</li>
+     * <li>If polling is not enabled, it performs the streaming operations directly.</li></ul>
+     * @param observer An implementation of the StreamObserver interface. This observer will be notified of stream events and will handle the processing of the events.
      */
     public void subscribe(StreamObserver<T> observer) {
         LOGGER.log(Level.INFO, "Started DynamoDB stream subscription");
-        if (streamRequest.getPollConfig().usePolling()) {
-            scheduleTaskWithFixedDelay(observer);
+        if (pollConfig.oneTimePolling()) {
+            performStreamOperations(observer);
         } else {
-            performStreamingOperations(observer);
+            scheduleTaskWithFixedDelay(observer);
         }
     }
 
     private void scheduleTaskWithFixedDelay(StreamObserver<T> observer) {
         ScheduledExecutorService executorService = pollConfig.getScheduledExecutorService();
-        Runnable task = () -> performStreamingOperations(observer);
+        Runnable task = () -> performStreamOperations(observer);
         executorService.scheduleWithFixedDelay(
                 task, pollConfig.getInitialDelay(), pollConfig.getDelay(), pollConfig.getTimeUnit()
         );
     }
 
-    private void performStreamingOperations(StreamObserver<T> observer) {
+    private void performStreamOperations(StreamObserver<T> observer) {
         LOGGER.log(Level.FINE, "Started streaming operations");
         streamObserver = observer;
         removeExpiredShards();
@@ -74,7 +85,11 @@ public class DynamoStreams<T> {
     }
 
     /**
-     * @return StreamShards
+     * Description
+     * This method retrieves the current set of stream shards (if any) and returns them in a StreamShards object.
+     * A StreamShards object encapsulates a list of StreamShard instances, which represent individual shards of the DynamoDB stream.
+     *
+     * @return StreamShards An object representing the current set of stream shards.
      */
     public StreamShards getShards() {
         return new StreamShards(new ArrayList<>(shardsMap.values()));
@@ -225,6 +240,9 @@ public class DynamoStreams<T> {
 
     /**
      * shutdown
+     * Description
+     * This method shuts down the DynamoStreams instance by stopping the scheduled executor service (if it's using its own executor).
+     * It should be called when the user no longer needs to process stream events or wants to gracefully terminate the stream subscription.
      */
     public void shutdown() {
         if (pollConfig.isOwnExecutor()) {
