@@ -8,6 +8,7 @@ import lombok.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
@@ -19,7 +20,7 @@ public class StreamRequest<T> {
 
     private final AmazonDynamoDBStreams dynamoDBStreams;
 
-    private final ExecutorService executorService;
+    private final Executor executor;
 
     private final Function<Map<String, AttributeValue>, T> mapperFn;
 
@@ -27,10 +28,10 @@ public class StreamRequest<T> {
 
     private final ShardIteratorType shardIteratorType;
 
-    private StreamRequest(
+    public StreamRequest(
             String streamARN,
             AmazonDynamoDBStreams dynamoDBStreams,
-            ExecutorService executorService,
+            Executor executor,
             Function<Map<String, AttributeValue>, T> mapperFn,
             List<EventType> eventTypes, ShardIteratorType shardIteratorType) {
 
@@ -39,7 +40,7 @@ public class StreamRequest<T> {
 
         this.streamARN = streamARN;
         this.dynamoDBStreams = dynamoDBStreams;
-        this.executorService = executorService;
+        this.executor = executor;
         this.mapperFn = mapperFn;
 
         this.shardIteratorType = Objects.requireNonNullElse(shardIteratorType, ShardIteratorType.LATEST);

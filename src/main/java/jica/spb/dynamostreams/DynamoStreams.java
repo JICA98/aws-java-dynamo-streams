@@ -2,99 +2,175 @@ package jica.spb.dynamostreams;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreams;
 import com.amazonaws.services.dynamodbv2.model.*;
-import jica.spb.dynamostreams.model.EventType;
-import jica.spb.dynamostreams.model.StreamEvent;
-import jica.spb.dynamostreams.model.StreamObserver;
-import jica.spb.dynamostreams.model.StreamRequest;
-import lombok.RequiredArgsConstructor;
+import com.amazonaws.services.dynamodbv2.model.Record;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import jica.spb.dynamostreams.model.*;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static jica.spb.dynamostreams.FutureUtils.*;
-
-@RequiredArgsConstructor
 public class DynamoStreams<T> {
 
     private final StreamRequest<T> streamRequest;
-    private final List<StreamObserver> _streamObservers = new CopyOnWriteArrayList<>();
-    private final Map<String, Shard> _shardsMap = new ConcurrentHashMap<>();
+    private final FutureUtils futureUtils;
+    private final List<StreamObserver> streamObservers = new CopyOnWriteArrayList<>();
+    private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
     private String lastEvaluatedShardId;
+
+    public DynamoStreams(StreamRequest<T> streamRequest) {
+        this.streamRequest = streamRequest;
+        this.futureUtils = new FutureUtils(streamRequest.getExecutor());
+    }
 
     private AmazonDynamoDBStreams streamsClient() {
         return streamRequest.getDynamoDBStreams();
     }
 
-    public void buildStreamState() {
-        _getShards();
-        _getRecords();
+    public void buildStreamState(StreamObserver observer) {
+        streamObservers.add(observer);
+        removeExpiredShards();
+        getShards();
+        if (shardsMap.isEmpty()) {
+            return;
+        }
+        getShardIterators();
+        emitRecords(getRecords());
+        removeExpiredShards();
     }
 
-    private void _getShards() {
-
-        DescribeStreamResult describeStreamResult = streamsClient().describeStream(
+    private void getShards() {
+        DescribeStreamResult streamResult = streamsClient().describeStream(
                 new DescribeStreamRequest()
                         .withStreamArn(streamRequest.getStreamARN())
                         .withExclusiveStartShardId(lastEvaluatedShardId)
         );
 
-        List<Shard> shards = describeStreamResult.getStreamDescription().getShards();
+        List<Shard> shards = streamResult.getStreamDescription().getShards();
 
-        List<Shard> newShards = shards.stream()
-                .filter(shard -> _shardsMap.containsKey(shard.getShardId()))
-                .peek(shard -> _shardsMap.put(shard.getShardId(), shard))
+        List<StreamShard> newShards = shards.stream()
+                .filter(shard -> !shardsMap.containsKey(shard.getShardId()))
+                .map(shard -> shardsMap.put(shard.getShardId(), new StreamShard(shard)))
                 .collect(Collectors.toList());
 
-        _emitEvent(EventType.NewShardsEvent, newShards);
+        emitEvent(EventType.NEW_SHARD_EVENT, newShards);
     }
 
-    private void _getRecords() {
-        if (_shardsMap.isEmpty()) {
-            return;
-        }
-        getShardIterators()
-    }
-
-    private List<String> getShardIterators() {
-
-        var futures = _shardsMap.keySet().stream()
-                .map(shardId -> future(this::getSharedIterator, shardId, streamRequest.getExecutorService()))
+    private List<Record> getRecords() {
+        var futures = shardsMap.values().stream()
+                .map(mapToFuture(this::getRecord))
                 .collect(Collectors.toList());
 
-        return allOff(futures)
-                .thenApply(v -> futures.stream()
-                                .flatMap(FutureUtils::stream)
-                                .collect(Collectors.toList()))
-                .exceptionally(ex -> handleException(ex, cause -> new DynamoStreamsException("Couldn't complete future", cause)))
+        return futureUtils.allOff(futures)
+                .thenApply(flatMapFutures(futures))
+                .exceptionally(this::exceptionally)
                 .join();
     }
 
-    private String getSharedIterator(String shardId) {
-        GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
-                .withStreamArn(streamRequest.getStreamARN())
-                .withShardId(shardId)
-                .withShardIteratorType(streamRequest.getShardIteratorType());
-
-        GetShardIteratorResult getShardIteratorResult =
-                streamsClient().getShardIterator(getShardIteratorRequest);
-
-        return getShardIteratorResult.getShardIterator();
+    private List<Record> getRecord(StreamShard streamShard) {
+        try {
+            GetRecordsResult recordsResult = streamsClient().getRecords(new GetRecordsRequest()
+                    .withShardIterator(streamShard.getShardIterator()));
+            return recordsResult.getRecords();
+        } catch (ExpiredIteratorException e) {
+            streamShard.setShardIterator(null);
+            return Collections.emptyList();
+        }
     }
 
-    private <R> void _emitEvent(EventType eventType, R value) {
-        if (!_isEventChosen(eventType)) {
+    private void getShardIterators() {
+        var futures = shardsMap.values().stream()
+                .filter(shard -> shard.getShardIterator() == null)
+                .map(mapToFuture(this::getSharedIterator))
+                .collect(Collectors.toList());
+
+        futureUtils.allOff(futures)
+                .thenApply(joinFutures(futures))
+                .exceptionally(this::exceptionally)
+                .join();
+    }
+
+    private Void getSharedIterator(StreamShard streamShard) {
+        GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
+                .withStreamArn(streamRequest.getStreamARN())
+                .withShardId(streamShard.getShard().getShardId())
+                .withShardIteratorType(streamRequest.getShardIteratorType());
+
+        GetShardIteratorResult iteratorResult =
+                streamsClient().getShardIterator(getShardIteratorRequest);
+
+        streamShard.setShardIterator(iteratorResult.getShardIterator());
+        return null;
+    }
+
+    private void removeExpiredShards() {
+        var expiredShards = shardsMap.values().stream()
+                .filter(shard -> shard.getShardIterator() == null)
+                .map(shard -> shardsMap.remove(shard.getShard().getShardId()))
+                .collect(Collectors.toList());
+
+        if (!expiredShards.isEmpty()) {
+            emitEvent(EventType.OLD_SHARD_EVENT, expiredShards);
+        }
+    }
+
+    private void emitRecords(List<Record> recordList) {
+        recordList.stream().filter(Objects::nonNull)
+                .map(this::mapToDynamoRecord)
+                .forEach(this::emitRecordEvent);
+    }
+
+    private void emitRecordEvent(DynamoRecord<T> event) {
+        Optional.ofNullable(
+                EventType.VALUE_MAP.get(
+                        event.getOriginalRecord().getEventName()
+                )
+        ).ifPresent(type -> emitEvent(type, event));
+    }
+
+    private DynamoRecord<T> mapToDynamoRecord(Record recordDynamo) {
+        var streamRecord = recordDynamo.getDynamodb();
+        var mapper = streamRequest.getMapperFn();
+        var dynamoRecord = new DynamoRecord<T>(recordDynamo);
+        if (mapper != null && streamRecord != null) {
+            dynamoRecord.setNewImage(mapper.apply(streamRecord.getNewImage()));
+            dynamoRecord.setOldImage(mapper.apply(streamRecord.getOldImage()));
+            dynamoRecord.setKeyValues(mapper.apply(streamRecord.getNewImage()));
+        }
+        return dynamoRecord;
+    }
+
+    private <R> void emitEvent(EventType eventType, R value) {
+        if (!isEventChosen(eventType)) {
             return;
         }
-        _streamObservers.forEach(observer ->
+        streamObservers.forEach(observer ->
                 observer.onChanged(new StreamEvent<R>(eventType, value)));
     }
 
-    private boolean _isEventChosen(EventType eventType) {
+    private boolean isEventChosen(EventType eventType) {
         return streamRequest.getEventTypes().contains(eventType);
+    }
+
+    private <R> R exceptionally(Throwable ex) {
+        return futureUtils.handleException(ex, cause -> new DynamoStreamsException("Couldn't complete future", cause));
+    }
+
+    private <R> Function<Void, Stream<R>> joinFutures(List<CompletableFuture<R>> futures) {
+        return v -> futures.stream().flatMap(futureUtils::stream);
+    }
+
+    private <R> Function<Void, List<R>> flatMapFutures(List<CompletableFuture<List<R>>> futures) {
+        return v -> futures.stream().flatMap(futureUtils::streamList).collect(Collectors.toList());
+    }
+
+    private <S, R> Function<S, CompletableFuture<R>> mapToFuture(Function<S, R> function) {
+        return shard -> futureUtils.future(function, shard);
     }
 
 }

@@ -112,10 +112,4 @@
         </developer>
     </developers>
 
-    <scm>
-<!--        <connection>scm:git:git@github.com:jica98/OSSRH-66311.git</connection>-->
-<!--        <developerConnection>scm:git:ssh://github.com:jica98/OSSRH-66311.git</developerConnection>-->
-<!--        <url>https://github.com/jica98/OSSRH-66311/tree/main</url>-->
-    </scm>
-
 </project>
