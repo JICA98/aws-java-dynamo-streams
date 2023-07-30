@@ -12,22 +12,16 @@
    a. pom.xml
 
     ````
-        <dependency>
-            <groupId>com.amazonaws</groupId>
-            <artifactId>aws-java-sdk-dynamodb</artifactId>
-            <version>1.12.517</version>
-        </dependency>
-       <dependency>
-            <groupId>io.github.jica98</groupId>
-            <artifactId>aws-java-dynamo-streams</artifactId>
-            <version>0.0.1</version>
-        </dependency>
+    <dependency>
+         <groupId>io.github.jica98</groupId>
+         <artifactId>aws-java-dynamo-streams</artifactId>
+         <version>0.0.1</version>
+     </dependency>
    ````
     b. build.gradle
     
     ````
-   implementation group: 'com.amazonaws', name: 'aws-java-sdk-dynamodb', version: '1.12.517'
-    implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.1'
+   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.1'
    ````
 2. If you are using spring, add the following beans to your configuration class.
 
