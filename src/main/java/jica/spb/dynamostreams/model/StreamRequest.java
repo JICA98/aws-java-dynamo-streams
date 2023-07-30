@@ -3,38 +3,35 @@ package jica.spb.dynamostreams.model;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBStreams;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ShardIteratorType;
+import lombok.Builder;
+import lombok.Value;
 
 import java.util.Collections;
-
-import lombok.*;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-@Data
+@Value
 @Builder
 public class StreamRequest<T> {
 
-    private static final int STREAM_DESCRIPTION_LIMIT = 10;
+    Class<T> type;
 
-    private final Class<T> type;
+    String streamARN;
 
-    private final String streamARN;
+    AmazonDynamoDBStreams dynamoDBStreams;
 
-    private final AmazonDynamoDBStreams dynamoDBStreams;
+    Executor executor;
 
-    private final Executor executor;
+    Function<Map<String, AttributeValue>, T> mapperFn;
 
-    private final Function<Map<String, AttributeValue>, T> mapperFn;
+    List<EventType> eventTypes;
 
-    private final List<EventType> eventTypes;
+    ShardIteratorType shardIteratorType;
 
-    private final ShardIteratorType shardIteratorType;
-
-    private final int streamDescriptionLimitPerPoll;
+    PollConfig pollConfig;
 
     public StreamRequest(
             Class<T> type, String streamARN,
@@ -42,7 +39,8 @@ public class StreamRequest<T> {
             Executor executor,
             Function<Map<String, AttributeValue>, T> mapperFn,
             List<EventType> eventTypes, ShardIteratorType shardIteratorType,
-            Integer streamDescriptionLimitPerPoll) {
+            PollConfig pollConfig
+    ) {
 
         Objects.requireNonNull(type);
         Objects.requireNonNull(streamARN);
@@ -55,9 +53,9 @@ public class StreamRequest<T> {
         boolean isObjectClass = type == Object.class;
 
         this.shardIteratorType = Objects.requireNonNullElse(shardIteratorType, ShardIteratorType.LATEST);
-        this.streamDescriptionLimitPerPoll = Objects.requireNonNullElse(streamDescriptionLimitPerPoll, STREAM_DESCRIPTION_LIMIT);
         this.eventTypes = Objects.requireNonNullElse(eventTypes, EventType.ALL_TYPES);
         this.mapperFn = getObjectMapper(mapperFn, isObjectClass);
+        this.pollConfig = Objects.requireNonNullElse(pollConfig, new PollConfig());
     }
 
     private Function<Map<String, AttributeValue>, T> getObjectMapper(
