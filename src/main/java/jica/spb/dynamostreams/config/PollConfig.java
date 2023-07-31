@@ -1,5 +1,6 @@
-package jica.spb.dynamostreams.model;
+package jica.spb.dynamostreams.config;
 
+import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.Accessors;
 
@@ -20,6 +21,7 @@ public class PollConfig {
     private static final long DEFAULT_DELAY = 10L;
     private static final TimeUnit DEFAULT_TIME_UNIT = TimeUnit.SECONDS;
     private static final Long DEFAULT_INITIAL_DELAY = 1L;
+    private static final int CORE_POOL_SIZE = 1;
 
     /**
      * The maximum number of stream descriptions to retrieve per polling round.
@@ -61,12 +63,14 @@ public class PollConfig {
      * PollConfig constructor.
      *
      * @param streamDescriptionLimitPerPoll The maximum number of stream descriptions to retrieve per polling round.
-     * @param scheduledExecutorService The ScheduledExecutorService for handling polling tasks.
-     * @param oneTimePolling Flag to indicate if one-time polling should be used.
-     * @param delay The delay between successive polling rounds.
-     * @param initialDelay The initial delay before starting the first polling round.
-     * @param timeUnit The TimeUnit for specifying time durations related to polling.
+     * @param scheduledExecutorService      The ScheduledExecutorService for handling polling tasks.
+     * @param oneTimePolling                Flag to indicate if one-time polling should be used.
+     * @param delay                         The delay between successive polling rounds.
+     * @param initialDelay                  The initial delay before starting the first polling round.
+     * @param timeUnit                      The TimeUnit for specifying time durations related to polling.
      */
+
+    @Builder(toBuilder = true)
     public PollConfig(
             Integer streamDescriptionLimitPerPoll,
             ScheduledExecutorService scheduledExecutorService,
@@ -80,7 +84,7 @@ public class PollConfig {
         this.initialDelay = Objects.requireNonNullElse(initialDelay, DEFAULT_INITIAL_DELAY);
         this.timeUnit = Objects.requireNonNullElse(timeUnit, DEFAULT_TIME_UNIT);
         if (scheduledExecutorService == null) {
-            this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
+            this.scheduledExecutorService = Executors.newScheduledThreadPool(CORE_POOL_SIZE);
             ownExecutor = true;
         } else {
             ownExecutor = false;
@@ -92,8 +96,8 @@ public class PollConfig {
      * Default constructor for PollConfig.
      * Creates a PollConfig with default settings for one-time polling.
      */
-    public PollConfig() {
-        this(null, null, true, null, null, null);
+    PollConfig() {
+        this(null, null, false, null, null, null);
     }
 
 }

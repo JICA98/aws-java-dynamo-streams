@@ -38,10 +38,10 @@
     }
 
     @Bean(destroyMethod = "shutdown")
-    protected DynamoStreams<Object> dynamoStreams(AmazonDynamoDBStreams dynamoDBStreams) {
+    protected DynamoStreams<MyClass> dynamoStreams(AmazonDynamoDBStreams dynamoDBStreams) {
         return new DynamoStreams<>(
-                StreamRequest.<Object>builder()
-                        .type(Object.class)
+                StreamConfig.<MyClass>builder()
+                        .clazz(MyClass.class)
                         .dynamoDBStreams(dynamoDBStreams)
                         .streamARN(STREAM_ARN)
                 .build());
@@ -52,7 +52,7 @@
 
     ````java
     @Autowired
-    private DynamoStreams<Object> dynamoStreams;
+    private DynamoStreams<MyClass> dynamoStreams;
    
     @PostConstruct
     void postConstruct() {

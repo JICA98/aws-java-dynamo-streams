@@ -9,8 +9,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * EventType
- * The EventType enumeration represents different types of events that can occur in an Amazon DynamoDB Stream.
+ * EventType enumeration represents different types of events that can occur in an Amazon DynamoDB Stream.
  * <ol><li><p><code>INSERT_EVENT</code>: Event type for an INSERT operation.</p></li><li><p><code>MODIFY_EVENT</code>: Event type for a MODIFY operation.</p></li><li><p><code>REMOVE_EVENT</code>: Event type for a REMOVE operation.</p></li><li><p><code>NEW_SHARD_EVENT</code>: Event type for a new shard event.</p></li><li><p><code>OLD_SHARD_EVENT</code>: Event type for an old shard event.</p></li></ol>
  */
 @Getter
@@ -51,6 +50,11 @@ public enum EventType {
      * A list containing all the EventType values.
      */
     public static final List<EventType> ALL_TYPES = List.of(EventType.values());
+
+    /**
+     * A list containing the Default Values for Config
+     */
+    public static final List<EventType> DEFAULT_VALUES = List.of(EventType.INSERT_EVENT, EventType.REMOVE_EVENT, EventType.MODIFY_EVENT);
 
     /**
      * A map to store the EventType values with their corresponding string representations as keys.

@@ -6,6 +6,9 @@ import com.amazonaws.services.dynamodbv2.model.Record;
 
 import java.util.*;
 
+import jica.spb.dynamostreams.config.MapperConfig;
+import jica.spb.dynamostreams.config.PollConfig;
+import jica.spb.dynamostreams.config.StreamConfig;
 import jica.spb.dynamostreams.model.*;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,27 +26,30 @@ import java.util.stream.Collectors;
 public class DynamoStreams<T> {
 
     private static final Logger LOGGER = Logger.getLogger(DynamoStreams.class.getName());
-    private final StreamRequest<T> streamRequest;
+    private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
+    private final StreamConfig<T> streamConfig;
     private final FutureUtils futureUtils;
     private final PollConfig pollConfig;
+    private final MapperConfig<T> mapperConfig;
     private StreamObserver<T> streamObserver;
-    private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
 
     /**
      * Description
-     * The constructor initializes the DynamoStreams object with the provided StreamRequest.
-     * It sets up the necessary components for handling stream events, such as PollConfig based on the provided StreamRequest.
+     * The constructor initializes the DynamoStreams object with the provided StreamConfig.
+     * It sets up the necessary components for handling stream events, such as PollConfig based on the provided StreamConfig.
      * Parameters
-     * @param streamRequest: An instance of StreamRequest that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
+     *
+     * @param streamConfig : An instance of StreamConfig that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
      */
-    public DynamoStreams(StreamRequest<T> streamRequest) {
-        this.streamRequest = streamRequest;
-        this.futureUtils = new FutureUtils(streamRequest.getExecutor());
-        this.pollConfig = streamRequest.getPollConfig();
+    public DynamoStreams(StreamConfig<T> streamConfig) {
+        this.streamConfig = streamConfig;
+        this.futureUtils = new FutureUtils(streamConfig.getExecutor());
+        this.pollConfig = streamConfig.getPollConfig();
+        this.mapperConfig = streamConfig.getMapperConfig();
     }
 
     private AmazonDynamoDBStreams streamsClient() {
-        return streamRequest.getDynamoDBStreams();
+        return streamConfig.getDynamoDBStreams();
     }
 
     /**
@@ -52,6 +58,7 @@ public class DynamoStreams<T> {
      * </li><li>Depending on the <code>PollConfig</code>, the subscription can either be performed using polling or wi.</li>
      * <li>If polling is enabled, it schedules a task to periodically fetch stream events at the specified intervals.</li>
      * <li>If polling is not enabled, it performs the streaming operations directly.</li></ul>
+     *
      * @param observer An implementation of the StreamObserver interface. This observer will be notified of stream events and will handle the processing of the events.
      */
     public void subscribe(StreamObserver<T> observer) {
@@ -72,7 +79,7 @@ public class DynamoStreams<T> {
     }
 
     private void performStreamOperations(StreamObserver<T> observer) {
-        LOGGER.log(Level.FINE, "Started streaming operations");
+        LOGGER.log(Level.FINE, "Performing streaming operations");
         streamObserver = observer;
         removeExpiredShards();
         populateShards();
@@ -102,7 +109,7 @@ public class DynamoStreams<T> {
             LOGGER.log(Level.FINER, "New Stream describe with lastEvaluatedShardId: {}", lastEvaluatedShardId);
             DescribeStreamResult streamResult = streamsClient().describeStream(
                     new DescribeStreamRequest()
-                            .withStreamArn(streamRequest.getStreamARN())
+                            .withStreamArn(streamConfig.getStreamARN())
                             .withExclusiveStartShardId(lastEvaluatedShardId)
             );
 
@@ -176,9 +183,9 @@ public class DynamoStreams<T> {
         LOGGER.log(Level.FINEST, "Getting iterator for shard: {}", streamShard);
 
         GetShardIteratorRequest iteratorRequest = new GetShardIteratorRequest()
-                .withStreamArn(streamRequest.getStreamARN())
+                .withStreamArn(streamConfig.getStreamARN())
                 .withShardId(streamShard.getShard().getShardId())
-                .withShardIteratorType(streamRequest.getShardIteratorType());
+                .withShardIteratorType(streamConfig.getShardIteratorType());
 
         GetShardIteratorResult iteratorResult = streamsClient().getShardIterator(iteratorRequest);
 
@@ -216,7 +223,7 @@ public class DynamoStreams<T> {
 
     private DynamoRecord<T> mapToDynamoRecord(Record recordDynamo) {
         var streamRecord = recordDynamo.getDynamodb();
-        var mapper = streamRequest.getMapperFn();
+        var mapper = mapperConfig.getMapperFn();
         return DynamoRecord.<T>builder()
                 .originalRecord(recordDynamo)
                 .newImage(mapper.apply(streamRecord.getNewImage()))
@@ -235,7 +242,7 @@ public class DynamoStreams<T> {
     }
 
     private boolean isEventChosen(EventType eventType) {
-        return streamRequest.getEventTypes().contains(eventType);
+        return streamConfig.getEventTypes().contains(eventType);
     }
 
     /**

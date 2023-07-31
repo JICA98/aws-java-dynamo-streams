@@ -11,7 +11,7 @@ import lombok.Value;
  * @param <T> The type of data contained in the record images.
  */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class DynamoRecord<T> {
 
     /**

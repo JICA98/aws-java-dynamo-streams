@@ -10,7 +10,7 @@ import lombok.Data;
  * A class representing a shard in Amazon DynamoDB Streams.
  */
 @Data
-@Builder
+@Builder(toBuilder = true)
 @AllArgsConstructor
 public final class StreamShard {
 
