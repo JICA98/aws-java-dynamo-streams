@@ -1,4 +1,5 @@
 # DynamoStreams
+[![Apache License](https://img.shields.io/github/license/JICA98/aws-java-dynamo-streams)](https://github.com/JICA98/lombok.maven/blob/psycho/aws-java-dynamo-streams)
 
 1. Provides `subscribe` method to directly listen to your dynamoDb events.
 2. Listen to selected events such as `INSERT`, `REMOVE`, etc.
@@ -21,7 +22,7 @@
     b. build.gradle
     
     ````groovy
-   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.1'
+   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.3'
    ````
 2. If you are using spring, add the following beans to your configuration class.
 
