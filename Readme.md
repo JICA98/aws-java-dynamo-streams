@@ -1,5 +1,5 @@
 # DynamoStreams
-[![Apache License](https://img.shields.io/github/license/JICA98/aws-java-dynamo-streams)](https://github.com/JICA98/lombok.maven/blob/psycho/aws-java-dynamo-streams)
+[![Apache License](https://img.shields.io/github/license/JICA98/aws-java-dynamo-streams)](https://github.com/JICA98/aws-java-dynamo-streams/blob/psycho/LICENSE)
 
 1. Provides `subscribe` method to directly listen to your dynamoDb events.
 2. Listen to selected events such as `INSERT`, `REMOVE`, etc.
