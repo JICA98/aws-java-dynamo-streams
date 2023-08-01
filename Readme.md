@@ -15,7 +15,7 @@
     <dependency>
          <groupId>io.github.jica98</groupId>
          <artifactId>aws-java-dynamo-streams</artifactId>
-         <version>0.0.1</version>
+         <version>0.0.3</version>
      </dependency>
    ````
     b. build.gradle
