@@ -121,7 +121,7 @@ public class StreamEmitter<T> {
 
     @SuppressWarnings("unchecked")
     private <R> R cast(Object object) {
-        R typedObject = null;
+        R typedObject;
 
         try {
             typedObject = (R) object;
