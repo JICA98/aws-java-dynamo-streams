@@ -226,27 +226,7 @@ public class StreamEmitter<T> {
             }
         } else {
             split.remove(0);
-            return findReference(String.join(PATH_DELIMITER, split), cast(entry.getValue()), clazz);
+            return findReference(String.join(PATH_DELIMITER, split), (Map<String, Object>) entry.getValue(), clazz);
         }
-    }
-
-    /**
-     * Helper method to safely cast an object to a specific type.
-     *
-     * @param object The object to be casted.
-     * @param <R>    The type to which the object should be casted.
-     * @return The casted object, or null if the casting fails.
-     */
-    @SuppressWarnings("unchecked")
-    private <R> R cast(Object object) {
-        R typedObject;
-
-        try {
-            typedObject = (R) object;
-        } catch (ClassCastException ignored) {
-            typedObject = null;
-        }
-
-        return typedObject;
     }
 }
