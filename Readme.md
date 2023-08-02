@@ -1,4 +1,5 @@
 # DynamoStreams
+[![Apache License](https://img.shields.io/github/license/JICA98/aws-java-dynamo-streams)](https://github.com/JICA98/aws-java-dynamo-streams/blob/psycho/LICENSE)
 
 1. Provides `subscribe` method to directly listen to your dynamoDb events.
 2. Listen to selected events such as `INSERT`, `REMOVE`, etc.
@@ -15,13 +16,13 @@
     <dependency>
          <groupId>io.github.jica98</groupId>
          <artifactId>aws-java-dynamo-streams</artifactId>
-         <version>0.0.3</version>
+         <version>0.0.4</version>
      </dependency>
    ````
     b. build.gradle
     
     ````groovy
-   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.1'
+   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.4'
    ````
 2. If you are using spring, add the following beans to your configuration class.
 
@@ -38,25 +39,37 @@
     }
 
     @Bean(destroyMethod = "shutdown")
-    protected DynamoStreams<MyClass> dynamoStreams(AmazonDynamoDBStreams dynamoDBStreams) {
+    protected DynamoStreams<DataRoot> dynamoStreams(AmazonDynamoDBStreams dynamoDBStreams) {
         return new DynamoStreams<>(
-                StreamConfig.<MyClass>builder()
-                        .clazz(MyClass.class)
+                StreamConfig.<DataRoot>builder()
+                        .clazz(DataRoot.class)
                         .dynamoDBStreams(dynamoDBStreams)
                         .streamARN(STREAM_ARN)
                 .build());
     }
    ````
    
-3. Now, in one of your services, subscribe to the events of your table
+3. Now, in one of your controller/services, subscribe to the events of your table
 
     ````java
     @Autowired
-    private DynamoStreams<MyClass> dynamoStreams;
+    private DynamoStreams<DataRoot> dynamoStreams;
    
     @PostConstruct
     void postConstruct() {
-        dynamoStreams.subscribe(event -> log.debug("{}", event));
+        // Initialize here to start streaming events
+        dynamoStreams.initialize();
+    }
+   
+    // And return the flux in one of your endpoints
+    @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<DataRoot>> streamData() {
+        return dynamoStreams.emitter()
+                .newImages()
+                .map(data -> ServerSentEvent.<DataRoot>builder()
+                        .data(data)
+                        .id(UUID.randomUUID().toString())
+                        .build());
     }
    ````
    

@@ -31,7 +31,7 @@ public class DynamoStreams<T> {
     private final FutureUtils futureUtils;
     private final PollConfig pollConfig;
     private final MapperConfig<T> mapperConfig;
-    private StreamObserver<T> streamObserver;
+    private final StreamEmitter<T> emitter;
 
     /**
      * Description
@@ -39,17 +39,26 @@ public class DynamoStreams<T> {
      * It sets up the necessary components for handling stream events, such as PollConfig based on the provided StreamConfig.
      * Parameters
      *
-     * @param streamConfig : An instance of StreamConfig that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
+     * @param streamConfig An instance of StreamConfig that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
      */
     public DynamoStreams(StreamConfig<T> streamConfig) {
         this.streamConfig = streamConfig;
-        this.futureUtils = new FutureUtils(streamConfig.getExecutor());
         this.pollConfig = streamConfig.getPollConfig();
         this.mapperConfig = streamConfig.getMapperConfig();
+        this.emitter = new StreamEmitter<>();
+        this.futureUtils = new FutureUtils(streamConfig.getExecutor());
     }
 
     private AmazonDynamoDBStreams streamsClient() {
         return streamConfig.getDynamoDBStreams();
+    }
+
+    /**
+     * Method that exposes a utility class that emits and processes DynamoDB stream events and provides various Flux-based methods to work with the emitted data.
+     * @return emitter
+     */
+    public StreamEmitter<T> emitter() {
+        return emitter;
     }
 
     /**
@@ -59,28 +68,28 @@ public class DynamoStreams<T> {
      * <li>If polling is enabled, it schedules a task to periodically fetch stream events at the specified intervals.</li>
      * <li>If polling is not enabled, it performs the streaming operations directly.</li></ul>
      *
-     * @param observer An implementation of the StreamObserver interface. This observer will be notified of stream events and will handle the processing of the events.
+     * @return the same instance of DynamoStreams for easy configuration
      */
-    public void subscribe(StreamObserver<T> observer) {
+    public DynamoStreams<T> initialize() {
         LOGGER.log(Level.INFO, "Started DynamoDB stream subscription");
         if (pollConfig.oneTimePolling()) {
-            performStreamOperations(observer);
+            performStreamOperations();
         } else {
-            scheduleTaskWithFixedDelay(observer);
+            scheduleTaskWithFixedDelay();
         }
+        return this;
     }
 
-    private void scheduleTaskWithFixedDelay(StreamObserver<T> observer) {
+    private void scheduleTaskWithFixedDelay() {
         ScheduledExecutorService executorService = pollConfig.getScheduledExecutorService();
-        Runnable task = () -> performStreamOperations(observer);
+        Runnable task = this::performStreamOperations;
         executorService.scheduleWithFixedDelay(
                 task, pollConfig.getInitialDelay(), pollConfig.getDelay(), pollConfig.getTimeUnit()
         );
     }
 
-    private void performStreamOperations(StreamObserver<T> observer) {
+    private void performStreamOperations() {
         LOGGER.log(Level.FINE, "Performing streaming operations");
-        streamObserver = observer;
         removeExpiredShards();
         populateShards();
         if (shardsMap.isEmpty()) {
@@ -238,7 +247,7 @@ public class DynamoStreams<T> {
         }
         var event = new StreamEvent<>(eventType, dynamoRecord, new StreamShards(streamShards));
         LOGGER.log(Level.FINEST, "Emitting event: {}", event);
-        streamObserver.onChanged(event);
+        emitter.emit(event);
     }
 
     private boolean isEventChosen(EventType eventType) {
