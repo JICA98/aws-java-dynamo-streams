@@ -53,6 +53,10 @@ public class DynamoStreams<T> {
         return streamConfig.getDynamoDBStreams();
     }
 
+    /**
+     * Method that exposes a utility class that emits and processes DynamoDB stream events and provides various Flux-based methods to work with the emitted data.
+     * @return emitter
+     */
     public StreamEmitter<T> emitter() {
         return emitter;
     }
