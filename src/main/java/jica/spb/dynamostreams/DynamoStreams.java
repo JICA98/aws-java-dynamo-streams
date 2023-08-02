@@ -10,8 +10,6 @@ import jica.spb.dynamostreams.config.MapperConfig;
 import jica.spb.dynamostreams.config.PollConfig;
 import jica.spb.dynamostreams.config.StreamConfig;
 import jica.spb.dynamostreams.model.*;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Sinks;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,11 +27,11 @@ public class DynamoStreams<T> {
 
     private static final Logger LOGGER = Logger.getLogger(DynamoStreams.class.getName());
     private final Map<String, StreamShard> shardsMap = new ConcurrentHashMap<>();
-    private final Sinks.Many<StreamEvent<T>> sink = Sinks.many().multicast().onBackpressureBuffer();
     private final StreamConfig<T> streamConfig;
     private final FutureUtils futureUtils;
     private final PollConfig pollConfig;
     private final MapperConfig<T> mapperConfig;
+    private final StreamEmitter<T> emitter;
 
     /**
      * Description
@@ -41,21 +39,22 @@ public class DynamoStreams<T> {
      * It sets up the necessary components for handling stream events, such as PollConfig based on the provided StreamConfig.
      * Parameters
      *
-     * @param streamConfig : An instance of StreamConfig that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
+     * @param streamConfig An instance of StreamConfig that contains the necessary configuration and dependencies for setting up the DynamoDB stream subscription.
      */
     public DynamoStreams(StreamConfig<T> streamConfig) {
         this.streamConfig = streamConfig;
-        this.futureUtils = new FutureUtils(streamConfig.getExecutor());
         this.pollConfig = streamConfig.getPollConfig();
         this.mapperConfig = streamConfig.getMapperConfig();
+        this.emitter = new StreamEmitter<>();
+        this.futureUtils = new FutureUtils(streamConfig.getExecutor());
     }
 
     private AmazonDynamoDBStreams streamsClient() {
         return streamConfig.getDynamoDBStreams();
     }
 
-    public Flux<StreamEvent<T>> asFlux() {
-        return sink.asFlux();
+    public StreamEmitter<T> emitter() {
+        return emitter;
     }
 
     /**
@@ -244,7 +243,7 @@ public class DynamoStreams<T> {
         }
         var event = new StreamEvent<>(eventType, dynamoRecord, new StreamShards(streamShards));
         LOGGER.log(Level.FINEST, "Emitting event: {}", event);
-        sink.tryEmitNext(event);
+        emitter.emit(event);
     }
 
     private boolean isEventChosen(EventType eventType) {
