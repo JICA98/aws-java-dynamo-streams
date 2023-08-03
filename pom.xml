@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.jica98</groupId>
     <artifactId>aws-java-dynamo-streams</artifactId>
-    <version>0.0.4</version>
+    <version>0.0.5</version>
     <name>aws-java-dynamo-streams</name>
     <description>DynamoStream Class to subscribe to the low level Stream API of AWS DynamoDB</description>
     <url>https://maven.apache.org</url>
