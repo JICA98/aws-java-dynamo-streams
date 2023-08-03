@@ -18,7 +18,7 @@ public class PollConfig {
 
     // Default values for configuration parameters
     private static final int STREAM_DESCRIPTION_LIMIT = 10;
-    private static final long DEFAULT_DELAY = 10L;
+    private static final long DEFAULT_DELAY = 6L;
     private static final TimeUnit DEFAULT_TIME_UNIT = TimeUnit.SECONDS;
     private static final Long DEFAULT_INITIAL_DELAY = 1L;
     private static final int CORE_POOL_SIZE = 1;
