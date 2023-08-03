@@ -200,7 +200,7 @@ public class StreamEmitter<T> {
                 if (entry.getValue() == null) {
                     return Optional.empty();
                 } else {
-                    return whenValueExists(clazz, entry, split);
+                    return whenValueExists(clazz, entry.getValue(), split);
                 }
             }
         }
@@ -211,22 +211,30 @@ public class StreamEmitter<T> {
      * Recursive method to extract the value from a nested structure when it exists.
      *
      * @param clazz The class type to which the value should be converted.
-     * @param entry The entry containing the nested structure.
+     * @param value The value of the entry containing the nested structure.
      * @param split The list of path elements.
      * @param <R>   The type of the value to be extracted and converted.
      * @return An Optional containing the extracted value, or an empty Optional if the path is not found.
      */
     @SuppressWarnings("unchecked")
-    private <R> Optional<R> whenValueExists(Class<R> clazz, Map.Entry<String, Object> entry, List<String> split) {
+    private <R> Optional<R> whenValueExists(Class<R> clazz, Object value, List<String> split) {
         if (split.size() == 1) {
             if (clazz == null) {
-                return (Optional<R>) Optional.of(entry.getValue());
+                if (value instanceof Collection) {
+                    return (Optional<R>) Optional.of(Map.of("DATA", value));
+                } else {
+                    return (Optional<R>) Optional.of(value);
+                }
             } else {
-                return Optional.of(OBJECT_MAPPER.convertValue(entry.getValue(), clazz));
+                return Optional.of(OBJECT_MAPPER.convertValue(value, clazz));
             }
         } else {
-            split.remove(0);
-            return findReference(String.join(PATH_DELIMITER, split), (Map<String, Object>) entry.getValue(), clazz);
+            if (value instanceof Map) {
+                split.remove(0);
+                return findReference(String.join(PATH_DELIMITER, split), (Map<String, Object>) value, clazz);
+            } else {
+                return Optional.empty();
+            }
         }
     }
 }
