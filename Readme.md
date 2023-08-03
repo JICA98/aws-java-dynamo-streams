@@ -16,13 +16,13 @@
     <dependency>
          <groupId>io.github.jica98</groupId>
          <artifactId>aws-java-dynamo-streams</artifactId>
-         <version>0.0.4</version>
+         <version>0.0.5</version>
      </dependency>
    ````
     b. build.gradle
     
     ````groovy
-   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.4'
+   implementation group: 'io.github.jica98', name: 'aws-java-dynamo-streams', version: '0.0.5'
    ````
 2. If you are using spring, add the following beans to your configuration class.
 
@@ -64,7 +64,7 @@
     // And return the flux in one of your endpoints
     @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<ServerSentEvent<DataRoot>> streamData() {
-        return dynamoStreams.emitter()
+        return dynamoStreams.stream()
                 .newImages()
                 .map(data -> ServerSentEvent.<DataRoot>builder()
                         .data(data)
